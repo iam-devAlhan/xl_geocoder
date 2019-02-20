@@ -1,0 +1,10 @@
+name: geocoding
+channels:
+- conda-forge
+dependencies:
+- python=2.7
+- flake8
+- future
+- geocoder 
+- openpyxl
+- pyshp
