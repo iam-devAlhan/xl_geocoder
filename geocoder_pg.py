@@ -2,6 +2,7 @@
 import os
 import geocoder
 import shapefile
+from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
 
@@ -37,13 +38,14 @@ if __name__ == "__main__":
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
     xls_max_row = None
-    # xls_max_row = 10
     xls_max_column = 5
     output_dir = 'output'
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
     output_shp_path = os.path.join(output_dir, output_shp_name)
     incorrect_data_xls_name = 'NIEPOPRAWNE_ADRESY_' + xls_name + '.xlsx'
     incorrect_data_xls_path = os.path.join(output_dir, incorrect_data_xls_name)
+
+    delay = 1.2  # opóźnienie zapytania do serwera w sekundach 
 
     # Konfiguracja atrybutów shp
     fields_config = [
@@ -62,8 +64,9 @@ if __name__ == "__main__":
     rows = ws.iter_rows(min_row=xls_min_row, max_row=xls_max_row,
                         max_col=xls_max_column, values_only=True)
     # Xls na błędne adresy
-    incorrect_data_wb = Workbook(write_only=True)
-    incorrect_data_ws = incorrect_data_wb.create_sheet()
+    incorrect_data_wb = Workbook()
+    incorrect_data_ws = incorrect_data_wb.active
+    incorrect_data_ws.title = 'No result'
     incorrect_data_ws.append(['Nazwa', 'ul_nr', 'kod', 'miejscowosc', 'woj',
                              'nr_wiersza', 'gc_status', 'gc_status_code', 'gc_timeout'])
 
@@ -103,5 +106,9 @@ if __name__ == "__main__":
                     incorrect_data_ws.append(
                         [nazwa, ul_nr, kod, miejsc, woj,
                          i+1, gc.status, gc.status_code, gc.timeout])
+                    try:
+                        incorrect_data_wb.save(incorrect_data_xls_path)
+                    except:
+                        incorrect_data_wb.save(incorrect_data_xls_path.replace(xls_name, xls_name + '_alt'))
 
-    incorrect_data_wb.save(incorrect_data_xls_path)
+                sleep(delay)  # przeciwdziała banowaniu
