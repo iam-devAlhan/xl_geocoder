@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 miejsc = row[3].strip().encode('utf-8')      # D - miejscowosc
                 woj = row[4].strip().encode('utf-8')         # E - wojewodztwo
 
-                adres = ul_nr + ', ' + miejsc
+                adres = ul_nr + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
                 print adres
        
                 gc = geocoder.osm(adres, session=session)
