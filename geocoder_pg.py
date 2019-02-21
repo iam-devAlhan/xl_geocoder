@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 # print adres.decode('utf8').encode('cp1250')
 
                 if gc.ok:
-                    shp.point(gc.lat, gc.lng)
+                    shp.point(gc.lng, gc.lat)
                     shp.record(nazwa, ul_nr, kod, miejsc, woj)
                     print '    lat: {0}; lng: {1}'.format(gc.lat, gc.lng)
                 else:
