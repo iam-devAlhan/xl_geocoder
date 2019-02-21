@@ -38,7 +38,6 @@ if __name__ == "__main__":
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
     xls_max_row = None
-    xls_max_row = 5
     xls_max_column = 5
     output_dir = 'output'
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
@@ -54,7 +53,8 @@ if __name__ == "__main__":
         ['UL_NR', 'C', 255],
         ['KOD', 'C', 255],
         ['MIEJSC', 'C', 255],
-        ['WOJ', 'C', 255]
+        ['WOJ', 'C', 255],
+        ['OSM', 'C', 255]
     ]
 
 ### Instrukcje ----------------------------------------------------------------
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
                 if gc.ok:
                     shp.point(gc.lng, gc.lat)
-                    shp.record(nazwa, ul_nr, kod, miejsc, woj)
+                    shp.record(nazwa, ul_nr, kod, miejsc, woj, gc.osm)
                     print '    lat: {0}; lng: {1}'.format(gc.lat, gc.lng)
                 else:
                     print '    {0} (status:{1}, timeout:{2})'.format(
