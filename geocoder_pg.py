@@ -38,6 +38,7 @@ if __name__ == "__main__":
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
     xls_max_row = None
+    xls_max_row = 5
     xls_max_column = 5
     output_dir = 'output'
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
@@ -84,17 +85,16 @@ if __name__ == "__main__":
                 print i+1
 
                 # Pozycje kolumn w xls
-                nazwa = row[0].encode('utf8')       # A - nazwa
-                ul_nr = row[1].encode('utf8')       # B - ulica + numer
-                kod = row[2].encode('utf8')         # C - kod pocztowy
-                miejsc = row[3].encode('utf8')      # D - miejscowosc
-                woj = row[4].encode('utf8')         # E - wojewodztwo
+                nazwa = row[0].strip().encode('utf-8')       # A - nazwa
+                ul_nr = row[1].strip().encode('utf-8')       # B - ulica + numer
+                kod = row[2].strip().encode('utf-8')         # C - kod pocztowy
+                miejsc = row[3].strip().encode('utf-8')      # D - miejscowosc
+                woj = row[4].strip().encode('utf-8')         # E - wojewodztwo
 
-                adres = '{0}, {1}'.format(ul_nr, miejsc)
+                adres = ul_nr + ', ' + miejsc
+                print adres
        
                 gc = geocoder.osm(adres, session=session)
-
-                # print adres.decode('utf8').encode('cp1250')
 
                 if gc.ok:
                     shp.point(gc.lng, gc.lat)
