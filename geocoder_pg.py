@@ -31,6 +31,14 @@ def add_fields_to_shp(shp_writer, field_params_list):
     for field_params in field_params_list:
         shp_writer.field(*field_params)
 
+def sanitize_n_encode(string, encoding):
+    try:
+        if string:
+            return string.strip().encode(encoding)
+        else:
+            return 'BRAK DANYCH'
+    except AttributeError:
+        return 'ZŁY TYP DANYCH'
 
 if __name__ == "__main__":
 
@@ -94,12 +102,12 @@ if __name__ == "__main__":
                 
                 print i+1
 
-                # Pozycje kolumn w xls
-                nazwa = row[0].strip().encode('utf-8')       # A - nazwa
-                ul_nr_org = row[1].strip().encode('utf-8')   # B - ulica + numer
-                kod = row[2].strip().encode('utf-8')         # C - kod pocztowy
-                miejsc = row[3].strip().encode('utf-8')      # D - miejscowosc
-                woj = row[4].strip().encode('utf-8')         # E - wojewodztwo
+                # Odczyt danych z xls
+                nazwa = sanitize_n_encode(row[0], 'utf-8')         # A - nazwa
+                ul_nr_org = sanitize_n_encode(row[1], 'utf-8')     # B - ulica + numer
+                kod = sanitize_n_encode(row[2], 'utf-8')           # C - kod pocztowy
+                miejsc = sanitize_n_encode(row[3], 'utf-8')        # D - miejscowosc
+                woj = sanitize_n_encode(row[4], 'utf-8')           # E - wojewodztwo
 
                 ul_nr = re.sub(ul_nr_regex, '', ul_nr_org) if ul_nr_regex else ul_nr_org
 
