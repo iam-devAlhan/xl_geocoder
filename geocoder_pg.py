@@ -2,6 +2,7 @@
 import os
 import geocoder
 import shapefile
+import datetime
 from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
@@ -39,9 +40,14 @@ if __name__ == "__main__":
     xls_min_row = 2
     xls_max_row = None
     xls_max_column = 5
-    output_dir = 'output'
+    
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
+    output_dir = 'output_' + timestamp
+    
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
     output_shp_path = os.path.join(output_dir, output_shp_name)
+    
     incorrect_data_xls_name = 'NIEPOPRAWNE_ADRESY_' + xls_name + '.xlsx'
     incorrect_data_xls_path = os.path.join(output_dir, incorrect_data_xls_name)
 
