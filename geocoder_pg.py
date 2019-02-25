@@ -31,10 +31,10 @@ def add_fields_to_shp(shp_writer, field_params_list):
     for field_params in field_params_list:
         shp_writer.field(*field_params)
 
-def sanitize_n_encode(string, encoding):
+def sanitize_n_unicode(string):
     try:
         if string:
-            return string.strip().encode(encoding)
+            return unicode(string).strip()
         else:
             return 'BRAK DANYCH'
     except AttributeError:
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     xls_min_row = 2
     xls_max_row = None
     xls_max_column = 5
-    ul_nr_regex = '\w+\.'  # None = użycie ul_nr bez modyfikacji
+    ul_nr_regex = re.compile('\w+\.', re.UNICODE)  # None = ul_nr bez modyfikacji
     
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
@@ -100,14 +100,14 @@ if __name__ == "__main__":
 
             for i, row in enumerate(rows):
                 
-                print i+1
+                print i + xls_min_row
 
                 # Odczyt danych z xls
-                nazwa = sanitize_n_encode(row[0], 'utf-8')         # A - nazwa
-                ul_nr_org = sanitize_n_encode(row[1], 'utf-8')     # B - ulica + numer
-                kod = sanitize_n_encode(row[2], 'utf-8')           # C - kod pocztowy
-                miejsc = sanitize_n_encode(row[3], 'utf-8')        # D - miejscowosc
-                woj = sanitize_n_encode(row[4], 'utf-8')           # E - wojewodztwo
+                nazwa = sanitize_n_unicode(row[0])         # A - nazwa
+                ul_nr_org = sanitize_n_unicode(row[1])     # B - ulica + numer
+                kod = sanitize_n_unicode(row[2])           # C - kod pocztowy
+                miejsc = sanitize_n_unicode(row[3])        # D - miejscowosc
+                woj = sanitize_n_unicode(row[4])           # E - wojewodztwo
 
                 ul_nr = re.sub(ul_nr_regex, '', ul_nr_org) if ul_nr_regex else ul_nr_org
 
