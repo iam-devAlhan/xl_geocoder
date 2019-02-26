@@ -8,7 +8,15 @@ from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
 
-### Funkcje -------------------------------------------------------------------
+class FakeGC:
+    '''Sztuczna klasa do symulacji statusów geocodera.osm'''
+
+    def __init__(self, ok, status, status_code=-999, timeout=-999):
+        self.ok = ok
+        self.status = status
+        self.status_code = status_code
+        self.timeout = timeout
+
 
 def create_empty_shp(path, field_params_list, shapeType):
     '''
@@ -31,6 +39,7 @@ def add_fields_to_shp(shp_writer, field_params_list):
     for field_params in field_params_list:
         shp_writer.field(*field_params)
 
+
 def sanitize_n_unicode(string):
     try:
         if string:
@@ -40,17 +49,43 @@ def sanitize_n_unicode(string):
     except AttributeError:
         return 'ZŁY TYP DANYCH'
 
+
+def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
+                      building_number_first=False):
+    '''
+    Przetwarza i filtruje nazwę ulicy. 
+    (Opcja) Zupełnie odrzuca nazwę jeżeli zawiera ciąg tekstu z listy "filter". 
+    (Opcja) Usuwa skróty zakończone kropką (ul. Gen. Św. M.).
+    (Opcja) Znajduje numer budynku na końcu i przenosi na początek 
+            (rozwiązanie pod osm).
+    '''
+    regex = re.compile('\w+\.', re.UNICODE)  # Szuka słów zakończonych "."
+    regex2 = re.compile(ur'(?<= )\d*((?<=\d)(/|\\))?\d+[a-zA-Z]?$', re.UNICODE)  # Szuka numeru budynku na końcu ciągu znaków
+
+    if name_filter:
+        if next(substring in street_name for substring in name_filter):
+            return False
+    if remove_abbreviation:
+        street_name = re.sub(regex, '', street_name).strip()
+    if building_number_first:
+        try:
+            building_number = re.search(regex2, street_name).group()
+            street_name = building_number + ', ' + street_name.replace(building_number, '')
+        except AttributeError:
+            None
+    return unicode(street_name.strip())
+
+
 if __name__ == "__main__":
 
 ### Konfiguracja --------------------------------------------------------------
     
     xls_path = 'dane\\Instalacje_PZ_30092018.xlsx'  # zrodlo danych do geokodowania
-    xls_path = 'output_1\\NIEPOPRAWNE_ADRESY_Instalacje_PZ_30092018.xlsx'  # zrodlo danych do geokodowania
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
-    xls_max_row = None
+    xls_max_row = 10
     xls_max_column = 5
-    ul_nr_regex = re.compile('\w+\.', re.UNICODE)  # None = ul_nr bez modyfikacji
+    illegal_street_name_substrings = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ', u' ewid ']
     
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
@@ -109,12 +144,17 @@ if __name__ == "__main__":
                 miejsc = sanitize_n_unicode(row[3])        # D - miejscowosc
                 woj = sanitize_n_unicode(row[4])           # E - wojewodztwo
 
-                ul_nr = re.sub(ul_nr_regex, '', ul_nr_org) if ul_nr_regex else ul_nr_org
+                print u'      dane: {0}'.format(ul_nr_org)
 
-                adres = ul_nr.strip() + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
-                print adres
-       
-                gc = geocoder.osm(adres, session=session)
+                ul_nr = parse_street_name(street_name=ul_nr_org, name_filter=illegal_street_name_substrings,
+                            remove_abbreviation=True, building_number_first=True)
+                
+                if ul_nr:
+                    adres = ul_nr.strip() + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
+                    print u'   szukane: {0}'.format(adres)
+                    gc = geocoder.osm(adres, session=session)
+                else:
+                    gc = FakeGC(False, u"BŁĄD - NIERPAWIDŁOWA NAZWA ULICY")
 
                 if ul_nr == ul_nr_org:
                     ul_nr = ''
@@ -122,9 +162,9 @@ if __name__ == "__main__":
                 if gc.ok:
                     shp.point(gc.lng, gc.lat)
                     shp.record(nazwa, ul_nr_org, ul_nr, kod, miejsc, woj, gc.osm)
-                    print '    lat: {0}; lng: {1}'.format(gc.lat, gc.lng)
+                    print '       lat: {0}; lng: {1}'.format(gc.lat, gc.lng)
                 else:
-                    print '    {0} (status:{1}, timeout:{2})'.format(
+                    print u'       {0} (status:{1}, timeout:{2})'.format(
                         gc.status, gc.status_code, gc.timeout)
                     incorrect_data_ws.append(
                         [nazwa, ul_nr_org, ul_nr, kod, miejsc, woj,
