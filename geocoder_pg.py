@@ -63,8 +63,9 @@ def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
     regex2 = re.compile(ur'(?<= )\d*((?<=\d)(/|\\))?\d+[a-zA-Z]?$', re.UNICODE)  # Szuka numeru budynku na końcu ciągu znaków
 
     if name_filter:
-        if next(substring in street_name for substring in name_filter):
-            return False
+        for substring in name_filter:
+            if substring in street_name:
+                return False
     if remove_abbreviation:
         street_name = re.sub(regex, '', street_name).strip()
     if building_number_first:
