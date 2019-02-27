@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+#-----------------------------------------------------------------------------------------
+# Nazwa:     geocoder_pg
+# Opis:      Geokoduje adresy i zwraca warstwę shp na podstawie listy zapisanej w xlsx. 
+#
+# Autor:     Przemek Garasz
+# Data utw:  2018-02-20
+# Wersja:    1.0
+#-----------------------------------------------------------------------------------------
+
 import os
 import geocoder
 import shapefile
