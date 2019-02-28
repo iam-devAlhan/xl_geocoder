@@ -5,12 +5,14 @@
 #
 # Autor:     Przemek Garasz
 # Data utw:  2018-02-20
-# Wersja:    1.0
+# Data mod:  2018-02-28
+# Wersja:    1.1
 #-----------------------------------------------------------------------------------------
 
 import os
 import geocoder
 import shapefile
+import pycrs
 import datetime
 import re
 from time import sleep
@@ -47,6 +49,17 @@ def add_fields_to_shp(shp_writer, field_params_list):
     '''
     for field_params in field_params_list:
         shp_writer.field(*field_params)
+
+
+def create_prj_file(path, epsg, proj_name="Unknown"):
+    '''Tworzy plik z definicją systemu współrzędnych w formaci ESRI'''
+    crs = pycrs.parse.from_epsg_code(4326)
+    crs.name = proj_name
+    if os.path.splitext(path)[-1] == '.prj':
+        with open(path, "w") as writer:
+            writer.write(crs.to_esri_wkt())
+    else:
+        raise ValueError
 
 
 def sanitize_n_unicode(string):
@@ -140,6 +153,7 @@ if __name__ == "__main__":
     with shapefile.Writer(output_shp_path, 1) as shp:
 
         add_fields_to_shp(shp, fields_config)
+        create_prj_file(output_shp_path + '.prj', 4326, 'GCS_WGS_1984')
         
         with Session() as session:
 
