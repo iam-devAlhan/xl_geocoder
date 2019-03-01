@@ -1,13 +1,14 @@
-# -*- coding: utf-8 -*-
-#-----------------------------------------------------------------------------------------
-# Nazwa:     geocoder_pg
-# Opis:      Geokoduje adresy i zwraca warstwę shp na podstawie listy zapisanej w xlsx. 
-#
-# Autor:     Przemek Garasz
-# Data utw:  2018-02-20
-# Data mod:  2018-02-28
-# Wersja:    1.1
-#-----------------------------------------------------------------------------------------
+'''
+ -----------------------------------------------------------------------------------------
+ Nazwa:     geocoder_pg
+ Opis:      Geokoduje adresy i zwraca warstwę shp na podstawie listy zapisanej w xlsx.
+
+ Autor:     Przemek Garasz
+ Data utw:  2018-02-20
+ Data mod:  2018-02-29
+ Wersja:    1.2
+ ----------------------------------------------------------------------------------------
+'''
 
 import os
 import geocoder
@@ -18,6 +19,7 @@ import re
 from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
+
 
 class FakeGC:
     '''Sztuczna klasa do symulacji statusów geocodera.osm'''
@@ -44,7 +46,7 @@ def add_fields_to_shp(shp_writer, field_params_list):
     '''
     Dodaje atrybuty do shp
     shp_writer - instancja klasy Writer modułu shapefile
-    field_params_list - parametry atrybutu w postaci listy list 
+    field_params_list - parametry atrybutu w postaci listy list
                         [nazwa, typ, rozmiar]
     '''
     for field_params in field_params_list:
@@ -52,8 +54,9 @@ def add_fields_to_shp(shp_writer, field_params_list):
 
 
 def create_prj_file(path, epsg, proj_name="Unknown"):
-    '''Tworzy plik z definicją systemu współrzędnych w formaci ESRI'''
-    crs = pycrs.parse.from_epsg_code(4326)
+    '''Tworzy plik z definicją systemu współrzędnych w formacie ESRI'''
+    crs = pycrs.parse.from_epsg_code(epsg)
+
     crs.name = proj_name
     if os.path.splitext(path)[-1] == '.prj':
         with open(path, "w") as writer:
@@ -65,7 +68,7 @@ def create_prj_file(path, epsg, proj_name="Unknown"):
 def sanitize_n_unicode(string):
     try:
         if string:
-            return unicode(string).strip()
+            return string.strip()
         else:
             return 'BRAK DANYCH'
     except AttributeError:
@@ -75,14 +78,16 @@ def sanitize_n_unicode(string):
 def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
                       building_number_first=False):
     '''
-    Przetwarza i filtruje nazwę ulicy. 
-    (Opcja) Zupełnie odrzuca nazwę jeżeli zawiera ciąg tekstu z listy "filter". 
+    Przetwarza i filtruje nazwę ulicy.
+    (Opcja) Zupełnie odrzuca nazwę jeżeli zawiera ciąg tekstu z listy "filter".
     (Opcja) Usuwa skróty zakończone kropką (ul. Gen. Św. M.).
-    (Opcja) Znajduje numer budynku na końcu i przenosi na początek 
+    (Opcja) Znajduje numer budynku na końcu i przenosi na początek
             (rozwiązanie pod osm).
     '''
-    regex = re.compile('\w+\.', re.UNICODE)  # Szuka słów zakończonych "."
-    regex2 = re.compile(ur'(?<= )\d*((?<=\d)(/|\\))?\d+[a-zA-Z]?$', re.UNICODE)  # Szuka numeru budynku na końcu ciągu znaków
+    # Szuka słów zakończonych "."
+    regex = re.compile(r'\w+\.', re.UNICODE)
+    # Szuka numeru budynku na końcu ciągu znaków
+    regex2 = re.compile(r'(?<= )\d*((?<=\d)(/|\\))?\d+[a-zA-Z]?$', re.UNICODE)
 
     if name_filter:
         for substring in name_filter:
@@ -96,31 +101,31 @@ def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
             street_name = building_number + ', ' + street_name.replace(building_number, '')
         except AttributeError:
             None
-    return unicode(street_name.strip())
+    return street_name.strip()
 
 
 if __name__ == "__main__":
 
-### Konfiguracja --------------------------------------------------------------
-    
-    xls_path = 'dane\\Instalacje_PZ_30092018.xlsx'  # zrodlo danych do geokodowania
+    # Konfiguracja ------------------------------------------------------------
+
+    xls_path = 'dane/Rejestr_IPPC_30092018.xlsx'  # dane do geokodowania
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
     xls_max_row = 10
     xls_max_column = 5
     illegal_street_name_substrings = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ', u' ewid ']
-    
+
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
     output_dir = 'output_' + timestamp
-    
+
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
     output_shp_path = os.path.join(output_dir, output_shp_name)
-    
+
     incorrect_data_xls_name = 'NIEPOPRAWNE_ADRESY_' + xls_name + '.xlsx'
     incorrect_data_xls_path = os.path.join(output_dir, incorrect_data_xls_name)
 
-    delay = 1.2  # opóźnienie zapytania do serwera w sekundach 
+    delay = 1.2  # opóźnienie zapytania do serwera w sekundach
 
     # Konfiguracja atrybutów shp
     fields_config = [
@@ -133,7 +138,7 @@ if __name__ == "__main__":
         ['OSM', 'C', 255]
     ]
 
-### Instrukcje ----------------------------------------------------------------
+    # Instrukcje --------------------------------------------------------------
 
     # Odczyt xls z danymi
     wb = load_workbook(xls_path, read_only=True)
@@ -145,21 +150,20 @@ if __name__ == "__main__":
     incorrect_data_ws = incorrect_data_wb.active
     incorrect_data_ws.title = 'No result'
     incorrect_data_ws.append(['Nazwa', 'ul_nr_org', 'ul_nr', 'kod', 'miejscowosc', 'woj',
-                             'nr_wiersza', 'gc_status', 'gc_status_code', 'gc_timeout'])
+                              'nr_wiersza', 'gc_status', 'gc_status_code', 'gc_timeout'])
 
-
-    print '\n' + 'GEOKODOWANIE - START' + '\n'
+    print('\n' + 'GEOKODOWANIE - START' + '\n')
 
     with shapefile.Writer(output_shp_path, 1) as shp:
 
         add_fields_to_shp(shp, fields_config)
         create_prj_file(output_shp_path + '.prj', 4326, 'GCS_WGS_1984')
-        
+
         with Session() as session:
 
             for i, row in enumerate(rows):
-                
-                print i + xls_min_row
+
+                print(i + xls_min_row)
 
                 # Odczyt danych z xls
                 nazwa = sanitize_n_unicode(row[0])         # A - nazwa
@@ -168,14 +172,14 @@ if __name__ == "__main__":
                 miejsc = sanitize_n_unicode(row[3])        # D - miejscowosc
                 woj = sanitize_n_unicode(row[4])           # E - wojewodztwo
 
-                print u'      dane: {0}'.format(ul_nr_org)
+                print(f'      dane: {ul_nr_org}')
 
                 ul_nr = parse_street_name(street_name=ul_nr_org, name_filter=illegal_street_name_substrings,
-                            remove_abbreviation=True, building_number_first=True)
-                
+                                          remove_abbreviation=True, building_number_first=True)
+
                 if ul_nr:
                     adres = ul_nr.strip() + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
-                    print u'   szukane: {0}'.format(adres)
+                    print(f'   szukane: {adres}')
                     gc = geocoder.osm(adres, session=session)
                 else:
                     gc = FakeGC(False, u"BŁĄD - NIERPAWIDŁOWA NAZWA ULICY")
@@ -185,17 +189,17 @@ if __name__ == "__main__":
 
                 if gc.ok:
                     shp.point(gc.lng, gc.lat)
-                    shp.record(nazwa, ul_nr_org, ul_nr, kod, miejsc, woj, gc.osm)
-                    print '       lat: {0}; lng: {1}'.format(gc.lat, gc.lng)
+                    shp.record(nazwa, ul_nr_org, ul_nr,
+                               kod, miejsc, woj, gc.osm)
+                    print(f'       lat: {gc.lat}; lng: {gc.lng}')
                 else:
-                    print u'       {0} (status:{1}, timeout:{2})'.format(
-                        gc.status, gc.status_code, gc.timeout)
+                    print(f'       {gc.status} (status:{gc.status_code}, timeout:{gc.timeout})')
                     incorrect_data_ws.append(
                         [nazwa, ul_nr_org, ul_nr, kod, miejsc, woj,
-                         i+1, gc.status, gc.status_code, gc.timeout])
+                         i + 1, gc.status, gc.status_code, gc.timeout])
                     try:
                         incorrect_data_wb.save(incorrect_data_xls_path)
-                    except:
+                    except Exception:
                         incorrect_data_wb.save(
                             incorrect_data_xls_path.replace(xls_name, xls_name + '_alt'))
 
