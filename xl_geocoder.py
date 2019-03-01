@@ -1,7 +1,8 @@
 '''
  -----------------------------------------------------------------------------------------
- Nazwa:     geocoder_pg
- Opis:      Geokoduje adresy i zwraca warstwę shp na podstawie listy zapisanej w xlsx.
+ Nazwa:     xl_geocoder
+ Opis:      Geokoduje adresy z arkuszy kalkulacyjncyh programu Excel. 
+            Wynik zapisuje w postaci warstwy shp.
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
