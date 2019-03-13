@@ -66,13 +66,16 @@ def create_prj_file(path, epsg, proj_name="Unknown"):
         raise ValueError
 
 
-def sanitize_n_unicode(string):
+def sanitize_value(value, replace_none=False):
     try:
-        if string:
-            return string.strip()
+        if replace_none:
+            if not value:
+                return 'BRAK DANYCH'
+        if value:
+            return str(value).strip()
         else:
-            return 'BRAK DANYCH'
-    except AttributeError:
+            return ''
+    except TypeError:
         return 'ZŁY TYP DANYCH'
 
 
@@ -167,11 +170,11 @@ if __name__ == "__main__":
                 print(i + xls_min_row)
 
                 # Odczyt danych z xls
-                nazwa = sanitize_n_unicode(row[0])         # A - nazwa
-                ul_nr_org = sanitize_n_unicode(row[1])     # B - ulica + numer
-                kod = sanitize_n_unicode(row[2])           # C - kod pocztowy
-                miejsc = sanitize_n_unicode(row[3])        # D - miejscowosc
-                woj = sanitize_n_unicode(row[4])           # E - wojewodztwo
+                nazwa = sanitize_value(row[0])         # A - nazwa
+                ul_nr_org = sanitize_value(row[1])     # B - ulica + numer
+                kod = sanitize_value(row[2])           # C - kod pocztowy
+                miejsc = sanitize_value(row[3])        # D - miejscowosc
+                woj = sanitize_value(row[4])           # E - wojewodztwo
 
                 print(f'      dane: {ul_nr_org}')
 

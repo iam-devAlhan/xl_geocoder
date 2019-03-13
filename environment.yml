@@ -6,4 +6,4 @@ dependencies:
 - geocoder 
 - openpyxl
 - pyshp
-- pycrs
+- pycrs=1.0.1
