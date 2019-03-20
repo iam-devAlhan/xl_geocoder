@@ -6,8 +6,8 @@
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
- Data mod:  2018-02-29
- Wersja:    1.2
+ Data mod:  2018-03-20
+ Wersja:    1.21
  ----------------------------------------------------------------------------------------
 '''
 
@@ -112,11 +112,11 @@ if __name__ == "__main__":
 
     # Konfiguracja ------------------------------------------------------------
 
-    xls_path = 'dane/Rejestr_IPPC_30092018.xlsx'  # dane do geokodowania
+    xls_path = 'demo_data\IPPC.xlsx'  # dane do geokodowania
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_min_row = 2
     xls_max_row = 10
-    xls_max_column = 5
+    xls_max_column = None
     illegal_street_name_substrings = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ', u' ewid ']
 
     now = datetime.datetime.now()
@@ -135,10 +135,12 @@ if __name__ == "__main__":
     fields_config = [
         ['NAZWA', 'C', 255],
         ['UL_NR_ORG', 'C', 255],
-        ['UL_NR_MOD', 'C', 255],
         ['KOD', 'C', 255],
         ['MIEJSC', 'C', 255],
         ['WOJ', 'C', 255],
+        ['NR_BRANZ', 'C', 255],
+        ['BRANZA', 'C', 255],
+        ['UL_NR_MOD', 'C', 255],
         ['OSM', 'C', 255]
     ]
 
@@ -153,8 +155,8 @@ if __name__ == "__main__":
     incorrect_data_wb = Workbook()
     incorrect_data_ws = incorrect_data_wb.active
     incorrect_data_ws.title = 'No result'
-    incorrect_data_ws.append(['Nazwa', 'ul_nr_org', 'ul_nr', 'kod', 'miejscowosc', 'woj',
-                              'nr_wiersza', 'gc_status', 'gc_status_code', 'gc_timeout'])
+    incorrect_data_ws.append(['Nazwa', 'ul_nr', 'kod', 'miejscowosc', 'woj', 'nr_branz', 'branza',
+                              'nr_wiersza', 'ul_nr_mod', 'gc_status', 'gc_status_code', 'gc_timeout'])
 
     print('\n' + 'GEOKODOWANIE - START' + '\n')
 
@@ -175,32 +177,34 @@ if __name__ == "__main__":
                 kod = sanitize_value(row[2])           # C - kod pocztowy
                 miejsc = sanitize_value(row[3])        # D - miejscowosc
                 woj = sanitize_value(row[4])           # E - wojewodztwo
+                nr_branz = sanitize_value(row[5])      # F - numer branży
+                branza = sanitize_value(row[6])        # G - nazwa branży
 
                 print(f'      dane: {ul_nr_org}')
 
-                ul_nr = parse_street_name(street_name=ul_nr_org, name_filter=illegal_street_name_substrings,
+                ul_nr_mod = parse_street_name(street_name=ul_nr_org, name_filter=illegal_street_name_substrings,
                                           remove_abbreviation=True, building_number_first=True)
 
-                if ul_nr:
-                    adres = ul_nr.strip() + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
+                if ul_nr_mod:
+                    adres = ul_nr_mod.strip() + ', ' + kod + ' ' + miejsc + ', ' + 'Polska'
                     print(f'   szukane: {adres}')
                     gc = geocoder.osm(adres, session=session)
                 else:
                     gc = FakeGC(False, u"BŁĄD - NIERPAWIDŁOWA NAZWA ULICY")
 
-                if ul_nr == ul_nr_org:
-                    ul_nr = ''
+                if ul_nr_mod == ul_nr_org:
+                    ul_nr_mod = ''
 
                 if gc.ok:
                     shp.point(gc.lng, gc.lat)
-                    shp.record(nazwa, ul_nr_org, ul_nr,
-                               kod, miejsc, woj, gc.osm)
+                    shp.record(nazwa, ul_nr_org, kod, miejsc, woj, nr_branz, branza,
+                               ul_nr_mod, gc.osm)
                     print(f'       lat: {gc.lat}; lng: {gc.lng}')
                 else:
                     print(f'       {gc.status} (status:{gc.status_code}, timeout:{gc.timeout})')
                     incorrect_data_ws.append(
-                        [nazwa, ul_nr_org, ul_nr, kod, miejsc, woj,
-                         i + 1, gc.status, gc.status_code, gc.timeout])
+                        [nazwa, ul_nr_org, kod, miejsc, woj, nr_branz, branza,
+                         i + xls_min_row, ul_nr_mod, gc.status, gc.status_code, gc.timeout])
                     try:
                         incorrect_data_wb.save(incorrect_data_xls_path)
                     except Exception:
