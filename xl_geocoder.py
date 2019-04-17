@@ -6,8 +6,8 @@
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
- Data mod:  2018-05-30
- Wersja:    1.4
+ Data mod:  2018-06-01
+ Wersja:    1.5
  ----------------------------------------------------------------------------------------
 '''
 
@@ -81,8 +81,8 @@ def sanitize_value(value, replace_none=False):
         return 'ZŁY TYP DANYCH'
 
 
-def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
-                      building_number_first=False):
+def parse_street_name(street_name, name_filter=None, expand_abbrev=None,
+                      remove_abbrev=False, building_number_first=False):
     '''
     Przetwarza i filtruje nazwę ulicy.
     (Opcja) Zupełnie odrzuca nazwę jeżeli zawiera ciąg tekstu z listy "filter".
@@ -90,17 +90,21 @@ def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
     (Opcja) Znajduje numer budynku na końcu i przenosi na początek
             (rozwiązanie pod osm).
     '''
-    # Szuka słów zakończonych ".", ignoruje 'św.' i 'im.'
-    regex = re.compile(r'\w+\.(?<!św\.)(?<!im\.)', re.IGNORECASE)
+    # Szuka słów zakończonych "."
+    regex = re.compile(r'\w+\.', re.UNICODE)
     # Szuka numeru budynku na końcu ciągu znaków
-    regex2 = re.compile(r'((?<= )\d*)((?<=\d)/|(?<=\d)\\)?(\d+)(?: |/|\\)?([a-zA-Z])?$')
+    regex2 = re.compile(r'((?<= )\d*)((?<=\d)/|(?<=\d)-|(?<=\d)\\)?(\d+)(?: |/|\\)?([a-zA-Z])?$')
 
     if name_filter:
         for substring in name_filter:
             if substring in street_name:
                 return False
-    if remove_abbreviation:
-        street_name = re.sub(regex, '', street_name)
+    if expand_abbrev:
+        for key in expand_abbrev:
+            # TODO match case
+            street_name = re.sub(key, expand_abbrev[key], street_name, flags=re.IGNORECASE)
+    if remove_abbrev:
+        street_name = re.sub(regex, '', street_name).strip()
     if building_number_first:
         try:
             match = re.search(regex2, street_name)
@@ -129,7 +133,8 @@ if __name__ == "__main__":
                              'powiat': 8,
                              'woj': 9
                              }
-    illegal_street_name_substrings = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ', u' ewid ']
+    illegal_street_names = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ']
+    abbrev_dict = {'św.':'świętego'}
 
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
@@ -171,7 +176,6 @@ if __name__ == "__main__":
         column_headers = ['' for field_property in fields_config]
     incorrect_data_ws.append(column_headers + ['zapytanie', 'gc_status', 'gc_status_code', 'gc_timeout'])
 
-
     print('\n' + 'GEOKODOWANIE - START' + '\n')
 
     with shapefile.Writer(output_shp_path, 1) as shp:
@@ -194,27 +198,27 @@ if __name__ == "__main__":
                 powiat    = sanitize_value(row[idx['powiat']])
                 woj       = sanitize_value(row[idx['woj']])
 
-
+                
                 # WARUNKI UWZGLĘDNIAJĄCE MAŁE MIEJSCOWOŚCI BEZ NAZW ULIC
                 # TODO Zabezpieczyć przed None
-                if miejsc1 != '' and ulica != '':             # miejscowosc bez poczty z nazwami ulicami
+                if miejsc1 != '' and ulica != '':           # miejscowosc bez poczty z nazwami ulicami
                     print(f'      dane: {ulica}, {miejsc1}')
-                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_name_substrings,
-                                                  remove_abbreviation=True, building_number_first=True)
+                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
+                                                  expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
 
                     adres = ul_nr_mod.strip() + ', ' + miejsc1 + ', powiat ' + powiat
-
-                elif miejsc1 != '':                           # miejscowosc bez poczty (tylko numery budynków)
+            
+                elif miejsc1 != '':                         # miejscowosc bez poczty (tylko numery budynków)
                     print(f'      dane: {miejsc1}')
-                    ul_nr_mod = parse_street_name(street_name=miejsc1, name_filter=illegal_street_name_substrings,
-                                                  remove_abbreviation=True, building_number_first=True)
+                    ul_nr_mod = parse_street_name(street_name=miejsc1, name_filter=illegal_street_names,
+                                                  building_number_first=True)
 
                     adres = ul_nr_mod.strip() + ', powiat ' + powiat
 
-                elif miejsc2 != '' and ulica != '':           # miejscowosc z pocztą i ulicami
+                elif miejsc2 != '' and ulica != '':         # miejscowosc z pocztą i ulicami
                     print(f'      dane: {ulica}, {miejsc2}')
-                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_name_substrings,
-                                                  remove_abbreviation=True, building_number_first=True)
+                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
+                                                  expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
                     if miejsc2 == powiat:
                         powiat = ''
                     else:
@@ -223,8 +227,8 @@ if __name__ == "__main__":
                     adres = ul_nr_mod.strip() + ', ' + miejsc2 + powiat
 
 
-                has_leading_number = re.match('^\d+\S*', adres)  # Poprawny adres musi mieć numer budynku
-                print(f'   szukane: {adres}')       
+                has_leading_number = re.match('^\d+', adres)  # Poprawny adres musi mieć numer budynku
+                print(f'   szukane: {adres}')                    
 
                 if adres and has_leading_number:
                     gc = geocoder.osm(adres, session=session)
