@@ -92,18 +92,20 @@ def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
     # Szuka słów zakończonych ".", ignoruje 'św.' i 'im.'
     regex = re.compile(r'\w+\.(?<!św\.)(?<!im\.)', re.IGNORECASE)
     # Szuka numeru budynku na końcu ciągu znaków
-    regex2 = re.compile(r'(?<= )\d*((?<=\d)(/|\\))?\d+ ?[a-zA-Z]?$', re.UNICODE)
+    regex2 = re.compile(r'((?<= )\d*)((?<=\d)/|(?<=\d)\\)?(\d+)(?: |/|\\)?([a-zA-Z])?$')
 
     if name_filter:
         for substring in name_filter:
             if substring in street_name:
                 return False
     if remove_abbreviation:
-        street_name = re.sub(regex, '', street_name).strip()
+        street_name = re.sub(regex, '', street_name)
     if building_number_first:
         try:
-            building_number = re.search(regex2, street_name).group()
-            street_name = building_number + ', ' + street_name.replace(building_number, '')
+            match = re.search(regex2, street_name)
+            building_number = match.group()
+            mod_number = match.expand(r'\1\2\3\4')
+            street_name = mod_number + ', ' + street_name.replace(building_number, '')
         except AttributeError:
             None
     return street_name.strip()
@@ -172,7 +174,7 @@ if __name__ == "__main__":
 
             for i, row in enumerate(rows):
 
-                if i != 585: continue
+                if i != 631: continue
             
                 print(i + xls_min_row)
 
