@@ -135,6 +135,7 @@ if __name__ == "__main__":
                              }
     illegal_street_names = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ']
     abbrev_dict = {'św.':'świętego'}
+    strict_search = False
 
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
@@ -198,16 +199,14 @@ if __name__ == "__main__":
                 powiat    = sanitize_value(row[idx['powiat']])
                 woj       = sanitize_value(row[idx['woj']])
 
-                
-                # WARUNKI UWZGLĘDNIAJĄCE MAŁE MIEJSCOWOŚCI BEZ NAZW ULIC
-                # TODO Zabezpieczyć przed None
+
                 if miejsc1 != '' and ulica != '':           # miejscowosc bez poczty z nazwami ulicami
                     print(f'      dane: {ulica}, {miejsc1}')
                     ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
                                                   expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
 
                     adres = ul_nr_mod.strip() + ', ' + miejsc1 + ', powiat ' + powiat
-            
+
                 elif miejsc1 != '':                         # miejscowosc bez poczty (tylko numery budynków)
                     print(f'      dane: {miejsc1}')
                     ul_nr_mod = parse_street_name(street_name=miejsc1, name_filter=illegal_street_names,
@@ -219,22 +218,36 @@ if __name__ == "__main__":
                     print(f'      dane: {ulica}, {miejsc2}')
                     ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
                                                   expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
-                    if miejsc2 == powiat:
-                        powiat = ''
+                    if miejsc2.lower() == powiat.lower():
+                        adres = ul_nr_mod.strip() + ', ' + miejsc2
                     else:
-                        powiat = ', powiat ' + powiat
-
-                    adres = ul_nr_mod.strip() + ', ' + miejsc2 + powiat
-
-
-                has_leading_number = re.match('^\d+', adres)  # Poprawny adres musi mieć numer budynku
-                print(f'   szukane: {adres}')                    
-
-                if adres and has_leading_number:
-                    gc = geocoder.osm(adres, session=session)
+                        adres = ul_nr_mod.strip() + ', ' + miejsc2 + ', powiat ' + powiat
                 else:
-                    gc = FakeGC(False, u"BŁĄD - NIERPAWIDŁOWY ADRES")
-                    adres = gc.status
+                    adres = None
+
+
+                if strict_search:
+                    has_leading_number = re.match(r'^\d+\S*', adres)  # Poprawny adres musi zawierać nr budynku
+                    print(f'   szukane: {adres}')
+
+                    if adres and has_leading_number:
+                        gc = geocoder.osm(adres, session=session)
+                    else:
+                        gc = FakeGC(False, u"BŁĄD - NIEPRAWIDŁOWY ADRES")
+                else:
+                    if adres:
+                        print(f'   szukane: {adres}')
+                        gc = geocoder.osm(adres, session=session)
+
+                        while 'No results' in gc.status and adres.find(',') > -1:  # jeżeli gc nie znalazł adresu
+                            i = adres.find(',')
+                            if i > -1:
+                                adres = adres[i+1:]  # skróć adres o część przed ','
+                                sleep(delay)
+                                print(f'   szukane: {adres}')
+                                gc = geocoder.osm(adres, session=session)
+                    else:
+                        gc = FakeGC(False, u"BŁĄD - NIEPRAWIDŁOWY ADRES")
 
 
                 if gc.ok:
