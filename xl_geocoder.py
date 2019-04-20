@@ -105,7 +105,7 @@ def parse_street_name(street_name, name_filter=None, remove_abbreviation=False,
             match = re.search(regex2, street_name)
             building_number = match.group()
             mod_number = match.expand(r'\1\2\3\4')
-            street_name = mod_number + ', ' + street_name.replace(building_number, '')
+            street_name = mod_number + ', ' + street_name.replace(building_number, '').strip()
         except AttributeError:
             None
     return street_name.strip()
@@ -146,7 +146,8 @@ if __name__ == "__main__":
         ['POWIAT', 'C', 255],
         ['WOJ', 'C', 255],
         ['PYTANIE', 'C', 255],
-        ['OSM_ODP', 'C', 255]
+        ['OSM_ODP', 'C', 255],
+        ['CONFIDENCE', 'F', 5, 2]
     ]
 
     # Instrukcje --------------------------------------------------------------
@@ -174,8 +175,6 @@ if __name__ == "__main__":
 
             for i, row in enumerate(rows):
 
-                if i != 631: continue
-            
                 print(i + xls_min_row)
 
                 # Odczyt danych z xls
@@ -190,7 +189,7 @@ if __name__ == "__main__":
                 powiat    = sanitize_value(row[8])
                 woj       = sanitize_value(row[9])
 
-                
+
                 # WARUNKI UWZGLĘDNIAJĄCE MAŁE MIEJSCOWOŚCI BEZ NAZW ULIC
                 # TODO Zabezpieczyć przed None
                 if miejsc1 != '' and ulica != '':             # miejscowosc bez poczty z nazwami ulicami
@@ -199,7 +198,7 @@ if __name__ == "__main__":
                                                   remove_abbreviation=True, building_number_first=True)
 
                     adres = ul_nr_mod.strip() + ', ' + miejsc1 + ', powiat ' + powiat
-            
+
                 elif miejsc1 != '':                           # miejscowosc bez poczty (tylko numery budynków)
                     print(f'      dane: {miejsc1}')
                     ul_nr_mod = parse_street_name(street_name=miejsc1, name_filter=illegal_street_name_substrings,
@@ -230,10 +229,11 @@ if __name__ == "__main__":
 
 
                 if gc.ok:
+                    confidence = gc.current_result.confidence
                     shp.point(gc.lng, gc.lat)
                     shp.record(typ, il_miejsc, przeznacz, miejsc1, ulica, kod, miejsc2, powiat, woj,
-                               adres, gc.osm)
-                    print(f'       lat: {gc.lat}; lng: {gc.lng}')
+                               adres, gc.osm, confidence)
+                    print(f'       lat: {gc.lat}; lng: {gc.lng}; confidence: {confidence}')
                 else:
                     print(f'       {gc.status} (status:{gc.status_code}, timeout:{gc.timeout})')
                     incorrect_data_ws.append(
