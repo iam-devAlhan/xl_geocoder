@@ -6,8 +6,8 @@
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
- Data mod:  2018-04-17
- Wersja:    1.3
+ Data mod:  2018-05-30
+ Wersja:    1.4
  ----------------------------------------------------------------------------------------
 '''
 
@@ -20,6 +20,7 @@ import re
 from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
+from tools.shp_template_from_xls import get_fields_properties_from_workseet
 
 
 class FakeGC:
@@ -117,9 +118,17 @@ if __name__ == "__main__":
 
     xls_path = r'demo_data\DPSiPOC.xlsx'  # dane do geokodowania
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
+    xls_has_header = True
     xls_min_row = 2
     xls_max_row = None
     xls_max_column = None
+    address_columns_indxs = {'ulica': 4,
+                             'miejsc1': 5,
+                             'kod': 6,
+                             'miejsc2': 7,
+                             'powiat': 8,
+                             'woj': 9
+                             }
     illegal_street_name_substrings = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ', u' ewid ']
 
     now = datetime.datetime.now()
@@ -134,19 +143,9 @@ if __name__ == "__main__":
 
     delay = 1.2  # opóźnienie zapytania do serwera w sekundach
 
-    # Konfiguracja atrybutów shp
-    fields_config = [
-        ['TYP', 'C', 255],
-        ['IL_MIEJSC', 'C', 255],
-        ['PRZEZNACZ', 'C', 255],
-        ['MIEJSC1', 'C', 255],
-        ['ULICA', 'C', 255],
-        ['KOD', 'C', 255],
-        ['MIEJSC2', 'C', 255],
-        ['POWIAT', 'C', 255],
-        ['WOJ', 'C', 255],
-        ['PYTANIE', 'C', 255],
-        ['OSM_ODP', 'C', 255],
+    additional_shp_fields = [
+        ['QUERY', 'C', 255],
+        ['OSM_ANSW', 'C', 255],
         ['CONFIDENCE', 'F', 5, 2]
     ]
 
@@ -157,18 +156,27 @@ if __name__ == "__main__":
     ws = wb.active
     rows = ws.iter_rows(min_row=xls_min_row, max_row=xls_max_row,
                         max_col=xls_max_column, values_only=True)
+
+    # Konfiguracja tabeli shp
+    fields_config = get_fields_properties_from_workseet(ws, xls_has_header)
+    shp_fields_config = fields_config + additional_shp_fields
+
     # Xls na błędne adresy
     incorrect_data_wb = Workbook()
     incorrect_data_ws = incorrect_data_wb.active
     incorrect_data_ws.title = 'No result'
-    incorrect_data_ws.append(['LP', 'TYP', 'IL_MIEJSC', 'PRZEZNACZ', 'ULICA', 'MIEJSC1', 'KOD', 'MIEJSC2', 'POWIAT', 'WOJ',
-                              'szukany', 'gc_osm', 'gc_status', 'gc_status_code', 'gc_timeout'])
+    if xls_has_header:  # TODO Przenieść do osobnej funkcji
+        column_headers = [field_property[0] for field_property in fields_config]
+    else:
+        column_headers = ['' for field_property in fields_config]
+    incorrect_data_ws.append(column_headers + ['zapytanie', 'gc_status', 'gc_status_code', 'gc_timeout'])
+
 
     print('\n' + 'GEOKODOWANIE - START' + '\n')
 
     with shapefile.Writer(output_shp_path, 1) as shp:
 
-        add_fields_to_shp(shp, fields_config)
+        add_fields_to_shp(shp, shp_fields_config)
         create_prj_file(output_shp_path + '.prj', 4326, 'GCS_WGS_1984')
 
         with Session() as session:
@@ -178,16 +186,13 @@ if __name__ == "__main__":
                 print(i + xls_min_row)
 
                 # Odczyt danych z xls
-                lp        = sanitize_value(row[0])
-                typ       = sanitize_value(row[1])
-                il_miejsc = sanitize_value(row[2])
-                przeznacz = sanitize_value(row[3])
-                ulica     = sanitize_value(row[4])
-                miejsc1   = sanitize_value(row[5])
-                kod       = sanitize_value(row[6])
-                miejsc2   = sanitize_value(row[7])
-                powiat    = sanitize_value(row[8])
-                woj       = sanitize_value(row[9])
+                idx = address_columns_indxs
+                ulica     = sanitize_value(row[idx['ulica']])
+                miejsc1   = sanitize_value(row[idx['miejsc1']])
+                kod       = sanitize_value(row[idx['kod']])
+                miejsc2   = sanitize_value(row[idx['miejsc2']])
+                powiat    = sanitize_value(row[idx['powiat']])
+                woj       = sanitize_value(row[idx['woj']])
 
 
                 # WARUNKI UWZGLĘDNIAJĄCE MAŁE MIEJSCOWOŚCI BEZ NAZW ULIC
@@ -231,14 +236,11 @@ if __name__ == "__main__":
                 if gc.ok:
                     confidence = gc.current_result.confidence
                     shp.point(gc.lng, gc.lat)
-                    shp.record(typ, il_miejsc, przeznacz, miejsc1, ulica, kod, miejsc2, powiat, woj,
-                               adres, gc.osm, confidence)
+                    shp.record(*row, adres, gc.osm, confidence)
                     print(f'       lat: {gc.lat}; lng: {gc.lng}; confidence: {confidence}')
                 else:
                     print(f'       {gc.status} (status:{gc.status_code}, timeout:{gc.timeout})')
-                    incorrect_data_ws.append(
-                        [lp, typ, il_miejsc, przeznacz, ulica, miejsc1, kod, miejsc2, powiat, woj,
-                         adres, gc.osm, gc.status, gc.status_code, gc.timeout])
+                    incorrect_data_ws.append(row + (adres, gc.status, gc.status_code, gc.timeout))
                     try:
                         incorrect_data_wb.save(incorrect_data_xls_path)
                     except Exception:
