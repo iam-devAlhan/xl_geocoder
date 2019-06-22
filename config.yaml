@@ -1,0 +1,26 @@
+xls:
+    path: "demo_data/DPSiPOC.xlsx"
+    has_header: True
+    min_row: 2
+    max_row: 10
+    max_column: null
+
+address:
+    col_indxs:
+        ulica: 4
+        miejsc1: 5 
+        kod: 6
+        miejsc2: 7
+        powiat: 8
+        woj: 9
+    illegal_street_names: 
+        - "dz."
+        - "ew."
+        - "dzia³ki"
+        - "nr"
+        - "obrêb"
+    abbrev_expansions: 
+        "œw.": "œwiêtego"
+        "gen.": "genera³a"
+
+strict_search: False

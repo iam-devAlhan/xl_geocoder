@@ -6,11 +6,12 @@
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
- Data mod:  2018-06-01
- Wersja:    1.5
+ Data mod:  2018-06-23
+ Wersja:    1.6
  ----------------------------------------------------------------------------------------
 '''
 
+import yaml
 import os
 import geocoder
 import shapefile
@@ -32,6 +33,14 @@ class FakeGC:
         self.status_code = status_code
         self.timeout = timeout
         self.osm = osm
+
+
+def load_config(config_file):
+    with open(config_file, 'r') as stream:
+        try:
+            return yaml.safe_load(stream)
+        except yaml.YAMLError as e:
+            print(e)
 
 
 def create_empty_shp(path, field_params_list, shapeType):
@@ -119,23 +128,21 @@ def parse_street_name(street_name, name_filter=None, expand_abbrev=None,
 if __name__ == "__main__":
 
     # Konfiguracja ------------------------------------------------------------
-
-    xls_path = r'demo_data\DPSiPOC.xlsx'  # dane do geokodowania
+    
+    config = load_config('config.yaml')
+    
+    xls_path = config['xls']['path']
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
-    xls_has_header = True
-    xls_min_row = 2
-    xls_max_row = None
-    xls_max_column = None
-    address_columns_indxs = {'ulica': 4,
-                             'miejsc1': 5,
-                             'kod': 6,
-                             'miejsc2': 7,
-                             'powiat': 8,
-                             'woj': 9
-                             }
-    illegal_street_names = [u'dz.', u'ew.', u' działki ', u' nr ', u' obręb ']
-    abbrev_dict = {'św.':'świętego'}
-    strict_search = False
+    xls_has_header = config['xls']['has_header']
+    xls_min_row = config['xls']['min_row']
+    xls_max_row = config['xls']['max_row']
+    xls_max_column = config['xls']['max_column']
+    
+    address_columns_indxs = config['address']['col_indxs']
+    illegal_street_names = config['address']['illegal_street_names']
+    abbrev_dict = config['address']['abbrev_expansions']
+    
+    strict_search = config['strict_search']
 
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
