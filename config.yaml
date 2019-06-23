@@ -22,5 +22,6 @@ address:
     abbrev_expansions: 
         "œw.": "œwiêtego"
         "gen.": "genera³a"
+    remove_abbrev: False
 
 strict_search: False

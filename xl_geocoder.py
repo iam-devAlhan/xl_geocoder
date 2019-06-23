@@ -7,7 +7,7 @@
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
  Data mod:  2018-06-23
- Wersja:    1.6
+ Wersja:    1.6.1
  ----------------------------------------------------------------------------------------
 '''
 
@@ -141,6 +141,7 @@ if __name__ == "__main__":
     address_columns_indxs = config['address']['col_indxs']
     illegal_street_names = config['address']['illegal_street_names']
     abbrev_dict = config['address']['abbrev_expansions']
+    remove_abbrev = config['address']['remove_abbrev']
     
     strict_search = config['strict_search']
 
@@ -210,7 +211,7 @@ if __name__ == "__main__":
                 if miejsc1 != '' and ulica != '':           # miejscowosc bez poczty z nazwami ulicami
                     print(f'      dane: {ulica}, {miejsc1}')
                     ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
-                                                  expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
+                                                  expand_abbrev=abbrev_dict, remove_abbrev=remove_abbrev, building_number_first=True)
 
                     adres = ul_nr_mod.strip() + ', ' + miejsc1 + ', powiat ' + powiat
 
@@ -224,7 +225,7 @@ if __name__ == "__main__":
                 elif miejsc2 != '' and ulica != '':         # miejscowosc z pocztą i ulicami
                     print(f'      dane: {ulica}, {miejsc2}')
                     ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
-                                                  expand_abbrev=abbrev_dict, remove_abbrev=True, building_number_first=True)
+                                                  expand_abbrev=abbrev_dict, remove_abbrev=remove_abbrev, building_number_first=True)
                     if miejsc2.lower() == powiat.lower():
                         adres = ul_nr_mod.strip() + ', ' + miejsc2
                     else:
@@ -251,7 +252,7 @@ if __name__ == "__main__":
                             if i > -1:
                                 adres = adres[i+1:]  # skróć adres o część przed ','
                                 sleep(delay)
-                                print(f'   szukane: {adres}')
+                                print(f'  powtórne: {adres}')
                                 gc = geocoder.osm(adres, session=session)
                     else:
                         gc = FakeGC(False, u"BŁĄD - NIEPRAWIDŁOWY ADRES")
