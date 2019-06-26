@@ -6,22 +6,22 @@
 
  Autor:     Przemek Garasz
  Data utw:  2018-02-20
- Data mod:  2018-06-23
- Wersja:    1.6.1
+ Data mod:  2018-06-26
+ Wersja:    1.7
  ----------------------------------------------------------------------------------------
 '''
 
-import yaml
 import os
 import geocoder
 import shapefile
-import pycrs
 import datetime
 import re
 from time import sleep
 from requests import Session
 from openpyxl import load_workbook, Workbook
-from tools.shp_template_from_xls import get_fields_properties_from_workseet
+from tools import load_config
+from tools.xl import get_fields_properties_from_worksheet
+from tools.shp import add_fields_to_shp, create_prj_file
 
 
 class FakeGC:
@@ -33,48 +33,6 @@ class FakeGC:
         self.status_code = status_code
         self.timeout = timeout
         self.osm = osm
-
-
-def load_config(config_file):
-    with open(config_file, 'r') as stream:
-        try:
-            return yaml.safe_load(stream)
-        except yaml.YAMLError as e:
-            print(e)
-
-
-def create_empty_shp(path, field_params_list, shapeType):
-    '''
-    Tworzy pusty plik shp ze strukturą atrubutów
-    shp_writer - instancja klasy Writer modułu shapefile
-    field_params_list - parametry pola tabeli w postaci listy list [nazwa, typ, rozmiar]
-    '''
-    with shapefile.Writer(path, shapeType) as shp:
-        for field_params in field_params_list:
-            shp.field(*field_params)
-
-
-def add_fields_to_shp(shp_writer, field_params_list):
-    '''
-    Dodaje atrybuty do shp
-    shp_writer - instancja klasy Writer modułu shapefile
-    field_params_list - parametry atrybutu w postaci listy list
-                        [nazwa, typ, rozmiar]
-    '''
-    for field_params in field_params_list:
-        shp_writer.field(*field_params)
-
-
-def create_prj_file(path, epsg, proj_name="Unknown"):
-    '''Tworzy plik z definicją systemu współrzędnych w formacie ESRI'''
-    crs = pycrs.parse.from_epsg_code(epsg)
-
-    crs.name = proj_name
-    if os.path.splitext(path)[-1] == '.prj':
-        with open(path, "w") as writer:
-            writer.write(crs.to_esri_wkt())
-    else:
-        raise ValueError
 
 
 def sanitize_value(value, replace_none=False):
@@ -110,7 +68,6 @@ def parse_street_name(street_name, name_filter=None, expand_abbrev=None,
                 return False
     if expand_abbrev:
         for key in expand_abbrev:
-            # TODO match case
             street_name = re.sub(key, expand_abbrev[key], street_name, flags=re.IGNORECASE)
     if remove_abbrev:
         street_name = re.sub(regex, '', street_name).strip()
@@ -128,21 +85,21 @@ def parse_street_name(street_name, name_filter=None, expand_abbrev=None,
 if __name__ == "__main__":
 
     # Konfiguracja ------------------------------------------------------------
-    
+
     config = load_config('config.yaml')
-    
+
     xls_path = config['xls']['path']
     xls_name = os.path.splitext(os.path.basename(xls_path))[0]
     xls_has_header = config['xls']['has_header']
     xls_min_row = config['xls']['min_row']
     xls_max_row = config['xls']['max_row']
     xls_max_column = config['xls']['max_column']
-    
+
     address_columns_indxs = config['address']['col_indxs']
     illegal_street_names = config['address']['illegal_street_names']
     abbrev_dict = config['address']['abbrev_expansions']
     remove_abbrev = config['address']['remove_abbrev']
-    
+
     strict_search = config['strict_search']
 
     now = datetime.datetime.now()
@@ -152,8 +109,8 @@ if __name__ == "__main__":
     output_shp_name = xls_name  # moduł shapefile ignoruje rozszerzenia plików
     output_shp_path = os.path.join(output_dir, output_shp_name)
 
-    incorrect_data_xls_name = 'NIEPOPRAWNE_ADRESY_' + xls_name + '.xlsx'
-    incorrect_data_xls_path = os.path.join(output_dir, incorrect_data_xls_name)
+    no_results_xls_name = 'NIEPOPRAWNE_ADRESY_' + xls_name + '.xlsx'
+    no_results_xls_path = os.path.join(output_dir, no_results_xls_name)
 
     delay = 1.2  # opóźnienie zapytania do serwera w sekundach
 
@@ -172,18 +129,18 @@ if __name__ == "__main__":
                         max_col=xls_max_column, values_only=True)
 
     # Konfiguracja tabeli shp
-    fields_config = get_fields_properties_from_workseet(ws, xls_has_header)
+    fields_config = get_fields_properties_from_worksheet(ws, xls_has_header)
     shp_fields_config = fields_config + additional_shp_fields
 
     # Xls na błędne adresy
-    incorrect_data_wb = Workbook()
-    incorrect_data_ws = incorrect_data_wb.active
-    incorrect_data_ws.title = 'No result'
-    if xls_has_header:  # TODO Przenieść do osobnej funkcji
+    no_results_wb = Workbook()
+    no_results_ws = no_results_wb.active
+    no_results_ws.title = 'No result'
+    if xls_has_header:
         column_headers = [field_property[0] for field_property in fields_config]
     else:
         column_headers = ['' for field_property in fields_config]
-    incorrect_data_ws.append(column_headers + ['zapytanie', 'gc_status', 'gc_status_code', 'gc_timeout'])
+    no_results_ws.append(column_headers + ['zapytanie', 'gc_status', 'gc_status_code', 'gc_timeout'])
 
     print('\n' + 'GEOKODOWANIE - START' + '\n')
 
@@ -210,50 +167,48 @@ if __name__ == "__main__":
 
                 if miejsc1 != '' and ulica != '':           # miejscowosc bez poczty z nazwami ulicami
                     print(f'      dane: {ulica}, {miejsc1}')
-                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
+                    parsed_st_name = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
                                                   expand_abbrev=abbrev_dict, remove_abbrev=remove_abbrev, building_number_first=True)
-
-                    adres = ul_nr_mod.strip() + ', ' + miejsc1 + ', powiat ' + powiat
+                    address = parsed_st_name + ', ' + miejsc1 + ', powiat ' + powiat
 
                 elif miejsc1 != '':                         # miejscowosc bez poczty (tylko numery budynków)
                     print(f'      dane: {miejsc1}')
-                    ul_nr_mod = parse_street_name(street_name=miejsc1, name_filter=illegal_street_names,
+                    parsed_st_name = parse_street_name(street_name=miejsc1, name_filter=illegal_street_names,
                                                   building_number_first=True)
-
-                    adres = ul_nr_mod.strip() + ', powiat ' + powiat
+                    address = parsed_st_name + ', powiat ' + powiat
 
                 elif miejsc2 != '' and ulica != '':         # miejscowosc z pocztą i ulicami
                     print(f'      dane: {ulica}, {miejsc2}')
-                    ul_nr_mod = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
+                    parsed_st_name = parse_street_name(street_name=ulica, name_filter=illegal_street_names,
                                                   expand_abbrev=abbrev_dict, remove_abbrev=remove_abbrev, building_number_first=True)
                     if miejsc2.lower() == powiat.lower():
-                        adres = ul_nr_mod.strip() + ', ' + miejsc2
+                        address = parsed_st_name + ', ' + miejsc2
                     else:
-                        adres = ul_nr_mod.strip() + ', ' + miejsc2 + ', powiat ' + powiat
+                        address = parsed_st_name + ', ' + miejsc2 + ', powiat ' + powiat
                 else:
-                    adres = None
+                    address = None
 
 
                 if strict_search:
-                    has_leading_number = re.match(r'^\d+\S*', adres)  # Poprawny adres musi zawierać nr budynku
-                    print(f'   szukane: {adres}')
+                    has_leading_number = re.match(r'^\d+\S*', address)  # Poprawny adres musi zawierać nr budynku
+                    print(f'   szukane: {address}')
 
-                    if adres and has_leading_number:
-                        gc = geocoder.osm(adres, session=session)
+                    if address and has_leading_number:
+                        gc = geocoder.osm(address, session=session)
                     else:
                         gc = FakeGC(False, u"BŁĄD - NIEPRAWIDŁOWY ADRES")
                 else:
-                    if adres:
-                        print(f'   szukane: {adres}')
-                        gc = geocoder.osm(adres, session=session)
+                    if address:
+                        print(f'   szukane: {address}')
+                        gc = geocoder.osm(address, session=session)
 
-                        while 'No results' in gc.status and adres.find(',') > -1:  # jeżeli gc nie znalazł adresu
-                            i = adres.find(',')
+                        while 'No results' in gc.status and address.find(',') > -1:  # jeżeli gc nie znalazł adresu
+                            i = address.find(',')
                             if i > -1:
-                                adres = adres[i+1:]  # skróć adres o część przed ','
+                                address = address[i+1:]  # skróć adres o część przed ','
                                 sleep(delay)
-                                print(f'  powtórne: {adres}')
-                                gc = geocoder.osm(adres, session=session)
+                                print(f'  powtórne: {address}')
+                                gc = geocoder.osm(address, session=session)
                     else:
                         gc = FakeGC(False, u"BŁĄD - NIEPRAWIDŁOWY ADRES")
 
@@ -261,15 +216,15 @@ if __name__ == "__main__":
                 if gc.ok:
                     confidence = gc.current_result.confidence
                     shp.point(gc.lng, gc.lat)
-                    shp.record(*row, adres, gc.osm, confidence)
+                    shp.record(*row, address, gc.osm, confidence)
                     print(f'       lat: {gc.lat}; lng: {gc.lng}; confidence: {confidence}')
                 else:
                     print(f'       {gc.status} (status:{gc.status_code}, timeout:{gc.timeout})')
-                    incorrect_data_ws.append(row + (adres, gc.status, gc.status_code, gc.timeout))
+                    no_results_ws.append(row + (address, gc.status, gc.status_code, gc.timeout))
                     try:
-                        incorrect_data_wb.save(incorrect_data_xls_path)
+                        no_results_wb.save(no_results_xls_path)
                     except Exception:
-                        incorrect_data_wb.save(
-                            incorrect_data_xls_path.replace(xls_name, xls_name + '_alt'))
+                        no_results_wb.save(
+                            no_results_xls_path.replace(xls_name, xls_name + '_alt'))
 
                 sleep(delay)  # przeciwdziała banowaniu

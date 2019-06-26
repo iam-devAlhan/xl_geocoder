@@ -128,7 +128,7 @@ def determine_field_properties(value, custom_properties=None):
     return list(field_property)
 
 
-def get_fields_properties_from_workseet(worksheet_object, has_header=None, row_number=None,
+def get_fields_properties_from_worksheet(worksheet_object, has_header=None, row_number=None,
                                         custom_properties=None):
     """Zwraca listę z konfiguracją pól tabeli atrybutów
     do wykorzystania przy tworzeniu plików shp za pomocą modułu shapefiles
@@ -171,7 +171,7 @@ def get_fields_properties_from_workseet(worksheet_object, has_header=None, row_n
 
 
 if __name__ == "__main__":
-    from xl_geocoder import create_empty_shp
+    from tools.shp import create_empty_shp
 
     xls_path = r'demo_data\DPSiPOC.xlsx'
     xls_path = r'demo_data\a.xlsx'
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     #                      float: ['N', 10, 8],
     #                      int: ['N', 9, 0]}
 
-    fields_properties = get_fields_properties_from_workseet(ws,
+    fields_properties = get_fields_properties_from_worksheet(ws,
                                 has_header=True,
                                 custom_properties=custom_properties,
                                 row_number=3)
