@@ -7,19 +7,19 @@ xls:
 
 address:
     col_indxs:
-        ulica: 4
-        miejsc1: 5 
-        kod: 6
-        miejsc2: 7
-        powiat: 8
-        woj: 9
-    illegal_street_names: 
+        st_name_num: 4
+        secondary_place_name: 5
+        postal_code: 6
+        primary_place_name: 7
+        county: 8
+        province: 9
+    illegal_street_names:
         - "dz."
         - "ew."
         - "dzia³ki"
         - "nr"
         - "obrêb"
-    abbrev_expansions: 
+    abbrev_expansions:
         "œw.": "œwiêtego"
         "gen.": "genera³a"
     remove_abbrev: False

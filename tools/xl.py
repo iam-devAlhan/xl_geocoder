@@ -3,19 +3,18 @@ from openpyxl import load_workbook, Workbook
 
 
 def get_column_samples_from_worksheet(worksheet_object, has_header=None, row_number=None):
-    """Zwraca dwuelementowe listy z nazwą kolumny i wartością wybranego wiersza
+    """Returns two element lists with column name and value from the chosen row
 
     Args:
-        worksheet_object - obiekt skoroszytu openpyxl
+        worksheet_object - openpyxl worksheet object
         has_header (bool, optional) -
-            True  - nazwy kolumn będą brane z pierwszego wiersza tabeli
-            False - nazwy kolumn to kolejne litery alfabetu
-        row_number (int, optional) -
-                    Numer wiersza, z którego będę brane wartości do analizy.
-                    Domyślnie brany jest pierwszy lub drugi wiersz tabeli
+            True  - column names based on the first row
+            False - column names as alphabet letters
+        row_number (int, optional) - row number to take samples from, 
+                    if none provided first row will be used (or second if first is header)
 
     Returns:
-        list: Dwuelementowa lista z nazwą kolumny i wartością z wybranego wiersza
+        list: Two element lists with column name and value from the chosen row
     """
 
     ws = worksheet_object
@@ -25,7 +24,7 @@ def get_column_samples_from_worksheet(worksheet_object, has_header=None, row_num
         if 1 <= row_number <= max_row:
             i = row_number
         else:
-            raise IndexError('Numer wiersza poza zakresem. Maks. numer wiersza to' + str(max_row))
+            raise IndexError('Row number out of range. Max row number: ' + str(max_row))
     else:
         if has_header:
             i = 2
@@ -49,7 +48,7 @@ def _validate_custom_properties(custom_properties):
     case2 = isinstance(custom_properties, dict)
 
     if not (case1 or case2):
-        raise TypeError('Nieprawidłowa wartość argumentu custom_properties')
+        raise TypeError('Incorrect custom_properties value')
 
     for data_type in custom_properties:
         if data_type in [str, int, float, bool, datetime] or data_type is None:
@@ -59,32 +58,30 @@ def _validate_custom_properties(custom_properties):
             p2_valid = isinstance(p2, int)
             valid.append(p0_valid and p1_valid and p2_valid)
         else:
-            TypeError('Nieobsługiwany typ danych')
+            TypeError('Incorrect data type')
 
         if not all(valid):
-            raise ValueError(f'Błędna konfiguracja dla {data_type}')
+            raise ValueError(f'Incorrect config for: {data_type}')
 
 
 def determine_field_properties(value, custom_properties=None):
-    """Rozpoznaje typ przekazanego argumentu i zwraca listę z konfiguracją
-    pola tabeli do zastosowanie w module shapefile
+    """Determines value properties in shp table context (type, length, precision)
+    Return lists with fields config used for shapefile creation
 
     Args:
-        value - wartość do analizy
+        value - analyzed value
         custom_properties (optional) -
             Konfiguracja parametrów typów pola tabeli
-              None - typ dobierany jest automatycznie, pozostałe
-                     właściwości według `default_properties`
-            "auto" - automatycznie dobiera typ, długość
-                     i ilość miejsc dziesiętnych (float)
-              dict - typ dobierany automatycznie,
-                     pozwala na ręczne nadpisanie wskazanych
-                     wartości `default_properties`
-                      {str: ['C', 255, 0]}
+              None - auto determine value type,
+                     length and precision from `default_properties`
+            "auto" - auto determine value type, length and precision for floats
+              dict - auto determine value type,
+                     override `default_properties` length and precision with values
+                     from the provided dict, e.g.
+                     {str: ['C', 255, 0]}
 
     Returns:
-        list - lista właściwości pól tabeli
-               do zastosowanie w module shapefile
+        list - Lists of field properties to be used by the shapefile package
     """
 
     default_properties = {
@@ -123,36 +120,33 @@ def determine_field_properties(value, custom_properties=None):
     elif not value:
         field_property = field_types_properties[None]
     else:
-        raise TypeError('Nieobsługiwany typ danych')
+        raise TypeError('Incorrect data type')
 
     return list(field_property)
 
 
 def get_fields_properties_from_worksheet(worksheet_object, has_header=None, row_number=None,
                                         custom_properties=None):
-    """Zwraca listę z konfiguracją pól tabeli atrybutów
-    do wykorzystania przy tworzeniu plików shp za pomocą modułu shapefiles
+    """Analyzes worksheet content and returns corresponding shapefile table config
 
       Args:
-        worksheet_object - obiekt skoroszytu openpyxl
+        worksheet_object - openpyxl worksheet object
         has_header (bool, optional) -
-            True  - nazwy kolumn będą brane z pierwszego wiersza tabeli
-            False - nazwy kolumn to kolejne litery alfabetu
-        row_number (int, optional) -
-                    Numer wiersza, z którego będę brane wartości do analizy.
-                    Domyślnie brany jest pierwszy lub drugi wiersz tabeli
+            True  - column names based on the first row
+            False - column names as alphabet letters
+        row_number (int, optional) - row number to take samples from, 
+                    if none provided first row will be used (or second if first is header)
         custom_properties (optional) -
             Konfiguracja parametrów typów pola tabeli
-                None  - typ dobierany jest automatycznie, pozostałe
-                        właściwości według `default_properties`
-               "auto" - automatycznie dobiera typ, długość
-                        i ilość miejsc dziesiętnych (float)
-                dict  - typ dobierany automatycznie, pozwala na ręczne nadpisanie
-                        wybranych wartości `default_properties`,
-                        podawać słowmnik o postaci:
-                        {str: ['C', 255, 0]}
+              None - auto determine value type,
+                     length and precision from `default_properties`
+            "auto" - auto determine value type, length and precision for floats
+              dict - auto determine value type,
+                     override `default_properties` length and precision with values
+                     from the provided dict, e.g.
+                     {str: ['C', 255, 0]}
     Returns:
-        list - list of lists - ['field_name', 'data_type_symbol', 'length', 'decima']
+        list - list of lists - ['field_name', 'data_type_symbol', 'length', 'decimal']
     """
     column_samples = get_column_samples_from_worksheet(worksheet_object, has_header, row_number)
 
@@ -168,30 +162,3 @@ def get_fields_properties_from_worksheet(worksheet_object, has_header=None, row_
         properties.append(field_properties)
 
     return properties
-
-
-if __name__ == "__main__":
-    from tools.shp import create_empty_shp
-
-    xls_path = r'demo_data\DPSiPOC.xlsx'
-    xls_path = r'demo_data\a.xlsx'
-    shp_name = 'test'
-
-    wb = load_workbook(xls_path, read_only=True)
-    ws = wb.active
-
-    custom_properties = None
-    # custom_properties = 'auto'
-    # custom_properties = {str: ['C', 100, 0],
-    #                      float: ['N', 10, 8],
-    #                      int: ['N', 9, 0]}
-
-    fields_properties = get_fields_properties_from_worksheet(ws,
-                                has_header=True,
-                                custom_properties=custom_properties,
-                                row_number=3)
-
-    # for p in fields_properties:
-    #     print(p)
-
-    create_empty_shp(shp_name, fields_properties, 1)
