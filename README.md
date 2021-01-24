@@ -2,9 +2,9 @@
 
 ## About
 
-This is a Python app that geocodes address data stored in Excel spreadsheets (Office Open XML) and saves it as a shp file.
+Geocode address data stored in Excel spreadsheets (Office Open XML) and save it to shp file.
 
-It uses [openpyxl](https://openpyxl.readthedocs.io) to read xlsx spreadsheets, [geocoder](https://pypi.org/project/geocoder/) package to query OSM's [Nominatim](https://nominatim.openstreetmap.org/) search engine and [pyshp](https://pypi.org/project/pyshp/#overview) to write shapefiles to disk.
+The app uses [openpyxl](https://openpyxl.readthedocs.io) to read xlsx spreadsheets, [geocoder](https://pypi.org/project/geocoder/) package to query OSM's [Nominatim](https://nominatim.openstreetmap.org/) search engine and [pyshp](https://pypi.org/project/pyshp/#overview) to write shapefiles to disk.
 
 This is my first venture into making my code public. I'm certain that there are a lot of changes to be made. For now it does it's intended purpose, but please consider this a work in progress and an exercise in learning Python.
 
